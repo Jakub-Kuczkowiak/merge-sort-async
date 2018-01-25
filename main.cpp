@@ -6,7 +6,8 @@
 #include <cstring>
 
 const int n = 10000000; // The size of array to generate
-const int m = 100000000; // max number to be generated
+const int m = 10000; // max number to be generated
+const int threads = 8; // Threads on this PC
 int* T;
 
 typedef struct
@@ -52,17 +53,14 @@ int main()
 
     unsigned int nthreads = std::thread::hardware_concurrency();
 
-    params_t* args = new params_t[sizeof(params_t)];
-    args->T = T1;
-    args->l = 0;
-    args->r = n - 1;
-    args->threadsAvailable = 16;//nthreads - 1;
+    params_t args;
+    args.T = T1;
+    args.l = 0;
+    args.r = n - 1;
+    args.threadsAvailable = nthreads - 1;
 
     clock_t begin = clock();
-
-    pthread_t thread;
-    mergesort_async((void*)args);
-
+    mergesort_async(&args);
     clock_t end = clock();
 
     double elapsedTime = double(end - begin);
@@ -73,9 +71,9 @@ int main()
 
     double elapsedTime2 = double(end2 - begin2);
 
-    //printArray(T1, n);
+    printArray(T1, n);
     printf("\nTime needed to sort using mergsort_async: %f\n", elapsedTime);
-    printf("Time needed to sort using mergesort: %f\n", elapsedTime2);
+    printf("Time neeeded to sort using mergesort: %f\n", elapsedTime2);
 
     return 0;
 }
@@ -172,27 +170,25 @@ void* mergesort_async(void* args)//,int* T, unsigned l, unsigned r)
         }
 
         // Spawn in threads
-        params_t* args = new params_t;
-        args->T = T;
-        args->l = l;
-        args->r = q;
-        args->threadsAvailable = threadsAvailable - 1;
+        params_t args;
+        args.T = T;
+        args.l = l;
+        args.r = q;
+        args.threadsAvailable = threadsAvailable - 1;
 
-        params_t* args2 = new params_t;
-        args2->T = T;
-        args2->l = q + 1;
-        args2->r = r;
-        args->threadsAvailable = threadsAvailable - 1;
+        params_t args2;
+        args2.T = T;
+        args2.l = q + 1;
+        args2.r = r;
+        args2.threadsAvailable = threadsAvailable - 1;
         
         pthread_t thread;
-        pthread_create(&thread, NULL, mergesort_async, (void*)args);
-        mergesort_async((void*)args2);
+
+        pthread_create(&thread, NULL, mergesort_async, &args);
+        mergesort_async(&args2);
 
         // wait for the thread to finish before merging
         pthread_join(thread, NULL);
-
-        delete args;
-        delete args2;
 
         merge(T, l, q, r);
     }   
